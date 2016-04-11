@@ -24,11 +24,11 @@ import java.util.regex.Pattern;
 public class SimpleJmsConnection implements SimpleJmsConnectionInterface {
 
     private ExecutorService executor;
-    String dev_host = "cbgd01.xeop.de:20282";
+    String dev_host = "xx.xx.xx:xx";
     //    String acceptance_host = "localhost:9000";
 
     static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SimpleJmsConnection.class);
-    private String connection = "amqp://amqpsrv_C7:amqpsrv_C7@JavaTool/?brokerlist='tcp://" + dev_host +
+    private String connection = "amqp://x/?brokerlist='tcp://" + dev_host +
             "?heartbeat='5''&sasl_mechs='PLAIN''&sync_publish='all'&sync_ack='true'";
 
     private String destinationQueue;
