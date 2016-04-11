@@ -17,8 +17,8 @@ public class AmqpGUI extends JFrame {
     public boolean run_mode = true;
     private static final Logger LOGGER = LoggerFactory.getLogger(AmqpGUI.class);
     private SimpleJmsConnection jmsConnection = new SimpleJmsConnection(this);
-    String dev_host = "cbgd01.xeop.de:20282";
-    String connetionURL = "amqp://admin:admin@JavaTool/?brokerlist='tcp://" + dev_host +
+    String dev_host = "xx.xx.xx:xxx";
+    String connetionURL = "amqp://xx:xx@JavaTool/?brokerlist='tcp://" + dev_host +
             "?heartbeat='5''&sasl_mechs='PLAIN''&sync_publish='all'&sync_ack='true'";
     private ArrayList<String> list_of_queues = new ArrayList<>();
     private String userName;
