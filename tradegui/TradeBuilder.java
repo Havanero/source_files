@@ -16,11 +16,13 @@ import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,6 +48,8 @@ public class TradeBuilder implements TradeBuilderInterface {
     JButton stopStartButton = null;
     private String totalThreads = "1";
     private DefaultTableModel table;
+    Timer timer;
+    int progressValue = 0;
     static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(TradeBuilder.class);
 
     TradeBuilder(TradingGuiTab tradingGuiTab) {
@@ -53,6 +57,8 @@ public class TradeBuilder implements TradeBuilderInterface {
         trdMtchRptType = new TrdMtchRptType();
         tradeRequest = new TradeRequest(trdMtchRptType);
         qpidMsgService = new QpidMsgServiceImpl(tradingGuiTab);
+        timer = new Timer(50, updateProBar);
+
     }
 
     @Override public void setInstrumentModel(DefaultTableModel instrumentModel) {
@@ -161,15 +167,29 @@ public class TradeBuilder implements TradeBuilderInterface {
         return null;
     }
 
+    ActionListener updateProBar = new ActionListener() {
+
+        public void actionPerformed(ActionEvent actionEvent) {
+            int processValue = tradingGuiTab.getProgressBar().getValue();
+            if (processValue >= 100) {
+                timer.stop();
+                return;
+            }
+            tradingGuiTab.getProgressBar().setValue(++processValue);
+        }
+    };
+
     @Override public void actionPerformed(ActionEvent e) {
         if (e.getActionCommand().contains("Press")) {
+            if (timer.isRunning())
+                timer.stop();
+            timer.start();
             loadConfiguration(tradingGuiTab.getTextField1().getText());
             return;
         }
         if (e.getActionCommand().contains("Send")) {
             int totalTrades = Integer.parseInt(tradingGuiTab.getTextField2().getText());
             processTrades(totalTrades);
-            //            getBuildTrade();
             return;
         }
 
@@ -181,31 +201,47 @@ public class TradeBuilder implements TradeBuilderInterface {
                 LOGGER.info("Entity Manager Closed Successfully.");
             tradingGuiTab.getButton1().setText("Press To Start");
             tradingGuiTab.getButton1().setBackground(Color.GRAY);
+            tradingGuiTab.getProgressBar().setValue(0);
+            isConfigurationLoaded = false;
+            timer.stop();
             return;
         }
         if (e.getActionCommand().contains("Start")) {
+            if (timer.isRunning())
+                timer.stop();
+            timer.start();
             if (setConnection()) {
                 stopStartButton = (JButton) e.getSource();
                 stopStartButton.setText("Stop Connection");
                 stopStartButton.setBackground(Color.GREEN);
+                tradingGuiTab.getProgressBar().setValue(tradingGuiTab.getProgressBar().getMaximum());
+                timer.stop();
                 return;
             }
+            timer.stop();
+
         }
         if (e.getActionCommand().contains("Stop")) {
             stopStartButton = (JButton) e.getSource();
             stopStartButton.setText("Start Connection");
             stopConnection();
             stopStartButton.setBackground(Color.GRAY);
+            tradingGuiTab.getProgressBar().setValue(tradingGuiTab.getProgressBar().getMinimum());
             return;
         }
 
         LOGGER.info(e.getActionCommand() + "\t Button Pressed");
+
     }
 
     @Override public void stateChanged(ChangeEvent e) {
-        JSpinner spinner = (JSpinner) e.getSource();
-        totalThreads = String.valueOf(spinner.getValue());
-        LOGGER.info("Using Thread(s) " + String.valueOf(spinner.getValue()));
+        if (e.getSource() instanceof JSpinner) {
+            JSpinner spinner = (JSpinner) e.getSource();
+            totalThreads = String.valueOf(spinner.getValue());
+            LOGGER.info("Using Thread(s) " + String.valueOf(spinner.getValue()));
+
+        }
+
     }
 
     @Override public void tableChanged(TableModelEvent e) {
@@ -213,8 +249,9 @@ public class TradeBuilder implements TradeBuilderInterface {
         System.out.println(e.getColumn() + "--" + e.getLastRow() + "--" + e.getType());
         DefaultTableModel tableModel = (DefaultTableModel) e.getSource();
         Vector vector = tableModel.getDataVector();
-        if(getInstrumentModel().getRowCount()!=tableModel.getRowCount()){
-            System.out.println("Both mode don't match" + getInstrumentModel().getRowCount() + tableModel.getRowCount());
+        if (getInstrumentModel().getRowCount() != tableModel.getRowCount()) {
+            System.out.println(
+                    "Both mode don't match" + getInstrumentModel().getRowCount() + tableModel.getRowCount());
         }
         Boolean ff = false;
         int v = e.getType();
@@ -263,6 +300,7 @@ public class TradeBuilder implements TradeBuilderInterface {
 
             @Override protected void done() {
                 super.done();
+                timer.stop();
                 tradingGuiTab.getButton2().setBackground(Color.GRAY);
             }
         };
@@ -271,6 +309,7 @@ public class TradeBuilder implements TradeBuilderInterface {
     }
 
     private void processRequest(String path) {
+
         SwingWorker<Object, String> swingWorker = new SwingWorker<Object, String>() {
 
             @Override protected Object doInBackground() throws Exception {
@@ -293,14 +332,15 @@ public class TradeBuilder implements TradeBuilderInterface {
                 updateInstrumentTable();
                 updateBuyerTable();
                 updateSellerTable();
-                isConfigurationLoaded = true;
-
                 return null;
             }
 
             @Override
             protected void done() {
                 LOGGER.info("Complete loading");
+                isConfigurationLoaded = true;
+                tradingGuiTab.getProgressBar().setValue(tradingGuiTab.getProgressBar().getMaximum());
+                timer.stop();
                 tradingGuiTab.getTextPane1().setText("Loading Complete \n");
                 tradingGuiTab.getButton1().setBackground(Color.GREEN);
                 tradingGuiTab.getButton1().setText("ShutDown Em");
@@ -308,6 +348,7 @@ public class TradeBuilder implements TradeBuilderInterface {
             }
         };
         swingWorker.execute();
+
     }
 
     private void updateInstrumentTable() {
